@@ -42,15 +42,14 @@ import threading
 import warnings
 
 try:
-    from setuptools.command.build_ext import build_ext as _build_ext
     from setuptools import Extension as _Extension
+    from setuptools.command.build_ext import build_ext as _build_ext
 except ImportError:
     from distutils.command.build_ext import build_ext as _build_ext
     from distutils.extension import Extension as _Extension
 
-import distutils.errors
 import distutils.ccompiler
-
+import distutils.errors
 
 WIN = sys.platform.startswith("win32")
 PY2 = sys.version_info[0] < 3

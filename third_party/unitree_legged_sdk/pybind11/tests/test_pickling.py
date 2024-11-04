@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
-import pytest
-
 import env  # noqa: F401
-
+import pytest
 from pybind11_tests import pickling as m
 
 try:
@@ -42,5 +40,6 @@ def test_roundtrip_with_dict(cls_name):
 
 def test_enum_pickle():
     from pybind11_tests import enums as e
+
     data = pickle.dumps(e.EOne, 2)
     assert e.EOne == pickle.loads(data)

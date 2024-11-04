@@ -14,12 +14,13 @@
 # limitations under the License.
 
 import warnings
+
 import numpy as np
 import tensorflow as tf
-
-from stable_baselines.common.distributions import make_proba_dist_type, spaces, \
-    DiagGaussianProbabilityDistributionType
-from stable_baselines.common.policies import FeedForwardPolicy, nature_cnn, mlp_extractor, linear
+from stable_baselines.common.distributions import (
+    DiagGaussianProbabilityDistributionType, make_proba_dist_type, spaces)
+from stable_baselines.common.policies import (FeedForwardPolicy, linear,
+                                              mlp_extractor, nature_cnn)
 
 
 def make_proba_dist_type(ac_space):
@@ -36,18 +37,44 @@ def make_proba_dist_type(ac_space):
         return make_proba_dist_type(ac_space)
 
 
-class DiagGaussianFixedVarProbabilityDistributionType(DiagGaussianProbabilityDistributionType):
+class DiagGaussianFixedVarProbabilityDistributionType(
+    DiagGaussianProbabilityDistributionType
+):
     def __init__(self, size):
         super(DiagGaussianFixedVarProbabilityDistributionType, self).__init__(size)
         return
 
-    def proba_distribution_from_latent(self, pi_latent_vector, vf_latent_vector,
-                                        pi_init_scale=1.0, pi_init_bias=0.0, pi_init_std=1.0,
-                                        vf_init_scale=1.0, vf_init_bias=0.0):
-        mean = linear(pi_latent_vector, 'pi', self.size, init_scale=pi_init_scale, init_bias=pi_init_bias)
-        logstd = tf.get_variable(name='pi/logstd', shape=[1, self.size], initializer=tf.constant_initializer(np.log(pi_init_std)), trainable=False)
+    def proba_distribution_from_latent(
+        self,
+        pi_latent_vector,
+        vf_latent_vector,
+        pi_init_scale=1.0,
+        pi_init_bias=0.0,
+        pi_init_std=1.0,
+        vf_init_scale=1.0,
+        vf_init_bias=0.0,
+    ):
+        mean = linear(
+            pi_latent_vector,
+            "pi",
+            self.size,
+            init_scale=pi_init_scale,
+            init_bias=pi_init_bias,
+        )
+        logstd = tf.get_variable(
+            name="pi/logstd",
+            shape=[1, self.size],
+            initializer=tf.constant_initializer(np.log(pi_init_std)),
+            trainable=False,
+        )
         pdparam = tf.concat([mean, mean * 0.0 + logstd], axis=1)
-        q_values = linear(vf_latent_vector, 'q', self.size, init_scale=vf_init_scale, init_bias=vf_init_bias)
+        q_values = linear(
+            vf_latent_vector,
+            "q",
+            self.size,
+            init_scale=vf_init_scale,
+            init_bias=vf_init_bias,
+        )
         return self.proba_distribution_from_flat(pdparam), mean, q_values
 
 
@@ -72,21 +99,48 @@ class ImitationPolicy(FeedForwardPolicy):
     :param kwargs: (dict) Extra keyword arguments for the nature CNN feature extraction
     """
 
-    def __init__(self, sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=False, layers=None, net_arch=None,
-                 act_fun=tf.tanh, cnn_extractor=nature_cnn, feature_extraction="mlp", **kwargs):
-        super(FeedForwardPolicy, self).__init__(sess, ob_space, ac_space, n_env, n_steps, n_batch, reuse=reuse,
-                                                scale=(feature_extraction == "cnn"))
+    def __init__(
+        self,
+        sess,
+        ob_space,
+        ac_space,
+        n_env,
+        n_steps,
+        n_batch,
+        reuse=False,
+        layers=None,
+        net_arch=None,
+        act_fun=tf.tanh,
+        cnn_extractor=nature_cnn,
+        feature_extraction="mlp",
+        **kwargs
+    ):
+        super(FeedForwardPolicy, self).__init__(
+            sess,
+            ob_space,
+            ac_space,
+            n_env,
+            n_steps,
+            n_batch,
+            reuse=reuse,
+            scale=(feature_extraction == "cnn"),
+        )
 
         self._pdtype = make_proba_dist_type(ac_space)
 
         self._kwargs_check(feature_extraction, kwargs)
 
         if layers is not None:
-            warnings.warn("Usage of the `layers` parameter is deprecated! Use net_arch instead "
-                          "(it has a different semantics though).", DeprecationWarning)
+            warnings.warn(
+                "Usage of the `layers` parameter is deprecated! Use net_arch instead "
+                "(it has a different semantics though).",
+                DeprecationWarning,
+            )
             if net_arch is not None:
-                warnings.warn("The new `net_arch` parameter overrides the deprecated `layers` parameter!",
-                              DeprecationWarning)
+                warnings.warn(
+                    "The new `net_arch` parameter overrides the deprecated `layers` parameter!",
+                    DeprecationWarning,
+                )
 
         if net_arch is None:
             if layers is None:
@@ -97,14 +151,23 @@ class ImitationPolicy(FeedForwardPolicy):
             if feature_extraction == "cnn":
                 pi_latent = vf_latent = cnn_extractor(self.processed_obs, **kwargs)
             else:
-                pi_latent, vf_latent = mlp_extractor(tf.layers.flatten(self.processed_obs), net_arch, act_fun)
+                pi_latent, vf_latent = mlp_extractor(
+                    tf.layers.flatten(self.processed_obs), net_arch, act_fun
+                )
 
-            self._value_fn = linear(vf_latent, 'vf', 1)
+            self._value_fn = linear(vf_latent, "vf", 1)
 
-            self._proba_distribution, self._policy, self.q_value = \
-                self.pdtype.proba_distribution_from_latent(pi_latent, vf_latent,
-                                                           pi_init_scale=1.0, pi_init_bias=0.0, pi_init_std=0.125,
-                                                           vf_init_scale=1.0, vf_init_bias=0.0)
+            self._proba_distribution, self._policy, self.q_value = (
+                self.pdtype.proba_distribution_from_latent(
+                    pi_latent,
+                    vf_latent,
+                    pi_init_scale=1.0,
+                    pi_init_bias=0.0,
+                    pi_init_std=0.125,
+                    vf_init_scale=1.0,
+                    vf_init_bias=0.0,
+                )
+            )
 
         self._setup_init()
         return
